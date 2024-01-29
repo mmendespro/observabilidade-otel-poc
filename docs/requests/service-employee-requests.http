@@ -1,0 +1,19 @@
+GET http://localhost:8080/v1/employees
+
+###
+GET http://localhost:8080/v1/employees/556623df-0397-464e-85b1-bef9ab8e67b3
+
+###
+GET http://localhost:8080/v1/employees/department/9a3d49df-326f-411b-a156-f05959bf1b6a
+
+###
+POST http://localhost:8080/v1/employees
+Content-Type: application/json
+
+{
+  "employeeName": "Carlos Eduardo Marques",
+  "departmentId": "c98f9b86-9d13-4aa5-99ba-9081f6161387"
+}
+
+###
+DELETE http://localhost:8080/v1/employees/285e97a6-903a-402d-b9a2-4e88332d7145

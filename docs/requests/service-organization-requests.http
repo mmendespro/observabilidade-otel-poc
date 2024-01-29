@@ -1,0 +1,9 @@
+GET http://localhost:8082/v1/organization
+
+###
+POST http://localhost:8082/v1/organization
+Content-Type: application/json
+
+{
+  "organizationName": "DFX"
+}

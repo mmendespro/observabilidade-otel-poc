@@ -1,0 +1,190 @@
+version: "3.5"
+
+networks:
+  localnet:
+    name: localnet
+    driver: bridge
+
+services:
+
+  service-employee:
+    build:
+      context: ../../service-employee
+      dockerfile: Dockerfile
+    container_name: service-employee
+    image: service-employee:latest
+    environment:
+      MYSQL_HOST: mysqldb
+      OTEL_SERVICE_NAME: "service-employee"
+      OTEL_RESOURCE_ATTRIBUTES: "service=service-employee,env=dev"
+      OTEL_TRACES_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://collector:4317"
+      OTEL_METRICS_EXPORTER: "prometheus"
+      OTEL_EXPORTER_PROMETHEUS_HOST: "0.0.0.0"
+      OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+      OTEL_LOGS_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://collector:4317"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysqldb
+      - collector
+    networks:
+      - localnet      
+
+  service-department:
+    build:
+      context: ../../service-department
+      dockerfile: Dockerfile
+    container_name: service-department
+    image: service-department:latest
+    environment:
+      MYSQL_HOST: mysqldb
+      EMPLOYEE_HOST: "service-employee"
+      OTEL_SERVICE_NAME: "service-department"
+      OTEL_RESOURCE_ATTRIBUTES: "service=service-department,env=dev"
+      OTEL_TRACES_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://collector:4317"
+      OTEL_METRICS_EXPORTER: "prometheus"
+      OTEL_EXPORTER_PROMETHEUS_HOST: "0.0.0.0"
+      OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+      OTEL_LOGS_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://collector:4317"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mysqldb
+      - collector
+    networks:
+      - localnet      
+
+  service-organization:
+    build:
+      context: ../../service-organization
+      dockerfile: Dockerfile
+    container_name: service-organization
+    image: service-organization:latest
+    environment:
+      MYSQL_HOST: mysqldb
+      DEPARTMENT_HOST: service-department
+      OTEL_SERVICE_NAME: "service-organization"
+      OTEL_RESOURCE_ATTRIBUTES: "service=service-organization,env=dev"
+      OTEL_TRACES_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://collector:4317"
+      OTEL_METRICS_EXPORTER: "prometheus"
+      OTEL_EXPORTER_PROMETHEUS_HOST: "0.0.0.0"
+      OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+      OTEL_LOGS_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://collector:4317"
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mysqldb
+      - collector
+    networks:
+      - localnet      
+
+  collector:
+    container_name: collector
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    command:
+      - --config=/etc/otelcol-contrib/otel-collector.yml
+    volumes:
+      - $PWD/etc/collector/otel-collector.yml:/etc/otelcol-contrib/otel-collector.yml
+    restart: always
+    ports:
+      - "4317" # OTLP gRPC receiver
+    depends_on:
+      - loki
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - tempo
+    networks:
+      - localnet
+
+  tempo:
+    container_name: tempo
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yml" ]
+    volumes:
+      - $PWD/etc/tempo/tempo.yml:/etc/tempo.yml
+    restart: always
+    ports:
+      - "4317"  # otlp grpc
+      - "3200"  # tempo as grafana datasource
+    networks:
+      - localnet
+
+  loki:
+    container_name: loki
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: always
+    ports:
+      - "3100"
+    networks:
+      - localnet
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    volumes:
+      - $PWD/etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --enable-feature=exemplar-storage
+    restart: always
+    ports:
+      - '9090:9090'
+    depends_on:
+      - service-employee
+    networks:
+      - localnet
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    volumes:
+      - $PWD/etc/grafana/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - localnet
+
+  jaeger-all-in-one:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: always
+    ports:
+      - "16686:16686"
+      - "4317"
+    networks:
+      - localnet
+
+  zipkin-all-in-one:
+    container_name: zipkin
+    image: openzipkin/zipkin:latest
+    restart: always
+    ports:
+      - "9411:9411"
+    networks:
+      - localnet
+
+  mysqldb:
+    container_name: mysqldb
+    image: mysql:5.7
+    restart: always
+    command: --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log # logs needs to be binary
+    environment:
+      MYSQL_ROOT_PASSWORD: 'toor'
+    ports:
+      - '3306:3306'
+    volumes:
+      - $PWD/vols/mysql_data:/var/lib/mysql
+    networks:
+      - localnet

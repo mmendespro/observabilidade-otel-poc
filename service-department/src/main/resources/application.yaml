@@ -1,0 +1,21 @@
+server:
+    port: 8081
+
+spring:
+    application:
+        name:  service-department
+    datasource:
+        url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/departmentsdb?createDatabaseIfNotExist=true&useTimezone=true&serverTimezone=America/Sao_Paulo
+        driverClassName: com.mysql.jdbc.Driver
+        username: root
+        password: toor
+    jpa:
+        show-sql: false
+        hibernate:
+            ddl-auto: update
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.MySQLDialect
+---
+clients:
+  service-employee: http://${EMPLOYEE_HOST:localhost}:8080/v1/employees

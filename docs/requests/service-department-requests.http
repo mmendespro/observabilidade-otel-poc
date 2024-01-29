@@ -1,0 +1,13 @@
+GET http://localhost:8081/v1/department
+
+###
+GET http://localhost:8081/v1/department/organization/9e7d6762-edcc-4147-9416-841df6311b59
+
+###
+POST http://localhost:8081/v1/department
+Content-Type: application/json
+
+{
+  "departamentName": "COMERCIAL",
+  "organizationId": "9e7d6762-edcc-4147-9416-841df6311b59"
+}
